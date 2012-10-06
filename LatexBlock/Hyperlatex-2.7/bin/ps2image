@@ -1,0 +1,71 @@
+#! /bin/sh
+# convert ps file to Gif
+#
+resolution=95
+quantcmd="cat"
+transcmd="-transparent #ffffff "
+antialiasing=""
+#
+usage() {
+  echo "Usage:" 1>&2
+  echo "  ps2image [-png|-gif] [ -res RESOLUTION ] [ -notrans ] psfile.ps" 1>&2
+  echo " " 1>&2
+  exit 1
+}
+
+[ $# -lt 2 ] && usage
+
+case $1 in
+    -gif)
+      convertcommand="ppmtogif"
+      ;;
+    -png)
+      convertcommand="pnmtopng"
+      ;;
+    *)
+      usage;;
+esac
+shift
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    -quant)
+      quantcmd="ppmquant 50"
+      ;;
+    -notrans)
+      transcmd=""
+      ;;
+    -antialiasing)
+      antialiasing="-dTextAlphaBits=4 -dGraphicsAlphaBits=4"
+      ;;
+    -res)
+      shift
+      if [ $# -eq 0 ]; then
+        echo "ps2image: no resolution specified" 1>&2
+        exit 1
+      fi
+      resolution=$1
+      ;;
+    -*)
+      usage;;
+    *)
+      fig=$1
+  esac
+  shift
+done
+
+case $convertcommand in
+    "ppmtogif")
+        image=`echo $fig | sed -e 's/\.[^\.]*$/.gif/'`
+        ;;
+    "pnmtopng")
+        image=`echo $fig | sed -e 's/\.[^\.]*$/.png/'`
+        ;;
+esac
+
+
+cat $fig \
+| gs -q -dNOPAUSE -r$resolution $antialiasing -sDEVICE=ppm -sOutputFile=- - \
+| pnmcrop | $quantcmd | $convertcommand -interlace $transcmd > $image
+
+echo "Done"
