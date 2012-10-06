@@ -26,28 +26,60 @@ function registerSliderHandler(Parser &$parser) {
 function slideHandler($input, array $args, Parser $parser, PPFrame $frame) {
   global $wgUser, $sliderMarkerList;
 
-  $css = "width: 100%; height: 400px; border: 1px solid red;"
+  $css = "width: 800px; height: 500px; border: 1px solid red;";
 
-    if (!empty($args['bg']))
-      $css .= " background: " . $args['bg'];
+  if (!empty($args['bg']))
+    $css .= " background: " . $args['bg'];
+  if ($args['center'] == "both" || $args['center'] == 'hori')
+    $input = '<center>' . $input . '</center>';
 
   $title = $parser->getTitle();
-  $title = str_replace(" ", "_", $title);
   
+  global $wgOut;
+
+  $input = preg_replace("/==(.+?)==/", "{h2}$1{/h2}", $input);
+  $input = preg_replace("/=(.+?)=/", "{h1}$1{/h1}", $input);
+  $output = $wgOut->parse($input);
+  $output = str_replace(array("{", "}"), array("<", ">"), $output);
+
   $page = <<<EOP
-<div style="%%CSS%%">
+<div id="slide_%%SLIDE%%" style="%%CSS%%">
 <center><h1>%%TITLE%%</h1></center>
 
-%%INPUT%%
+%%OUTPUT%%
 </div>
-EOP;
-  $page = str_replace(array('%%TITLE%%', '%%CSS%%', '%%INPUT%%'),
-                      array($title, $css, $input), $page);
+<script type="text/javascript">
+\$j(function() {
+  var \$all = \$j('#slide_%%SLIDE%%').find('*');
+  var displays = \$all.map(function() {
+    return \$j(this).css('display');
+  });
+  \$all.css('display', 'inline-block');
+  var widths = \$all.map(function() {
+    return \$j(this).width();
+  });
+  \$all.each(function(ii) {
+    \$j(this).css('display', displays[ii]);
+  });
 
+  var maxwidth = Math.max.apply(null, widths);
+  if (maxwidth < 800) {
+    \$j('#slide_%%SLIDE%%').css('font-size', Math.round(100 * 800 / maxwidth) + '%');
+  }
+});
+</script>
+EOP;
   $markercount = count($sliderMarkerList);
+  $page = str_replace(array('%%SLIDE%%', '%%TITLE%%', '%%CSS%%', '%%OUTPUT%%'),
+                      array($markercount, $title, $css, $output), $page);
+
   $marker = "xx-marker".$markercount."-xx";
   $sliderMarkerList[$markercount] = $page;
-  return $marker . $input;
+  return $marker;
+}
+
+function make_bigul($matches) {
+  return '<ul><li>' . $matches[1] . '</li></ul>';
 }
 
 // XXX: This should generate a save-able page presentation with all slides
